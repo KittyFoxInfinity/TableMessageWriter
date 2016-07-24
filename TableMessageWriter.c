@@ -35,18 +35,15 @@
 #include <fcntl.h>
 #include <string.h>
 #include <time.h>
+#include <inttypes.h>
 #include "sensor.c"
 
 // GLOBAL CONFIGURATION
 
 //#define DT 0.10         // [s/loop] loop period. 20ms
 float DT = 0.10;
-int secondsToSettle = 15;
-
-
-
-
-
+int SECONDS_TO_SETTLE = 15;
+const char PATH[] = "../../messages/";
 
 #define AA 0.97         // complementary filter constant
 
@@ -131,9 +128,11 @@ int main(int argc, char *argv[])
 	int sessionStartTime;
 	int isInSession;
 	
-	char tableMessageToWrite[1000];
+	char sessionAsJson[50000];
 	char messageStateString[3];
 	char messageTimeString[6];
+	char messageFilePath[255];
+	char messageFileName[255];
 	
 	while(1)
 	{
@@ -194,7 +193,7 @@ int main(int argc, char *argv[])
 		printf ("tableState:[%3d]",tableState);
 
 		// Settle the complementary filter on bootInt
-		if (!isCFSettled && (startInt - bootInt) > (secondsToSettle*1000))
+		if (!isCFSettled && (startInt - bootInt) > (SECONDS_TO_SETTLE*1000))
 		{
 			isCFSettled = 1;
 			settledState = tableState;
@@ -209,42 +208,59 @@ int main(int argc, char *argv[])
 			printf("\"time\":%d,",mymillis() - sessionStartTime);
 			
 						
-			// Session Logic
+			// Session Logic - NOW IN SESSION
 			if (!isInSession && (tableState != settledState) && (tableState > settledState))
 			{
 				isInSession = 1;
 				sessionStartTime = mymillis();
 				printf("***NOW IN SESSION");
-				strcpy(tableMessageToWrite, "{");
+				strcpy(sessionAsJson, "{");
 
 			}
+			// NOW OUT OF SESSION
 			else if (isInSession && tableState == settledState)
 			{
 				isInSession = 0;
 				printf("***NOW OUT SESSION");
-				strcat(tableMessageToWrite, "}");
 				
-				// print tableMessageToWrite
-				printf("\n\n%s\n\n",tableMessageToWrite);
+				// remove the last comma
+				sessionAsJson[strlen(sessionAsJson)-1] = 0;
+				strcat(sessionAsJson, "}");
 				
-				// clear tableMessageToWrite
-				strcpy(tableMessageToWrite,"");
+				// print sessionAsJson
+				printf("\n\n%s\n\n",sessionAsJson);
+				
+				// determine filepath to save
+				//sprintf(messageFilePath, "%s", PATH);
+				strcpy(messageFilePath, "");
+				strcat(messageFilePath, PATH);
+				sprintf(messageFileName,"YIZITIAN_%d",mymillis());
+				strcat(messageFilePath, messageFileName);
+				printf("%s",messageFilePath);
+				
+				// save sessionAsJson to file
+				FILE * messageOnDisk;
+				messageOnDisk = fopen(messageFilePath, "ab");
+				fprintf(messageOnDisk, "{\"SESSION_TIME\":%d,\"SESSION\":%s}",mymillis(),sessionAsJson);
+				fclose(messageOnDisk);
+				
+				// clear sessionAsJson
+				strcpy(sessionAsJson,"");
 			}
 
 			// Log duration if in session
 			if (isInSession)
 			{
-				strcat(tableMessageToWrite, "{\"TABLE_STATE\":");
+				strcat(sessionAsJson, "{\"TABLE_STATE\":");
 				sprintf(messageStateString, "%d", tableState-settledState);
-				strcat(tableMessageToWrite, messageStateString);
-				strcat(tableMessageToWrite, ", \"TIME\":");
+				strcat(sessionAsJson, messageStateString);
+				strcat(sessionAsJson, ", \"TIME\":");
 				sprintf(messageTimeString, "%d", mymillis()-sessionStartTime);
-				strcat(tableMessageToWrite, messageTimeString);
-				strcat(tableMessageToWrite, "},");
+				strcat(sessionAsJson, messageTimeString);
+				strcat(sessionAsJson, "},");
 			}
 
 		}
-		
 		
 		printf ("\n");
 		//Each loop should be at least 20ms.
