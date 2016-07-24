@@ -113,9 +113,8 @@ int main(int argc, char *argv[])
 
 	int startInt  = mymillis();
 	struct  timeval tvBegin, tvEnd,tvDiff;
-
-
-        signal(SIGINT, INThandler);
+	
+    signal(SIGINT, INThandler);
 
 	enableIMU();
 
@@ -131,6 +130,10 @@ int main(int argc, char *argv[])
 	
 	int sessionStartTime;
 	int isInSession;
+	
+	char tableMessageToWrite[1000];
+	char messageStateString[3];
+	char messageTimeString[6];
 	
 	while(1)
 	{
@@ -204,18 +207,40 @@ int main(int argc, char *argv[])
 		{
 			printf("\"tableState\":%d", tableState-settledState);
 			printf("\"time\":%d,",mymillis() - sessionStartTime);
-
-			// If changing from settled state
+			
+						
+			// Session Logic
 			if (!isInSession && (tableState != settledState) && (tableState > settledState))
 			{
 				isInSession = 1;
 				sessionStartTime = mymillis();
 				printf("***NOW IN SESSION");
+				strcpy(tableMessageToWrite, "{");
+
 			}
 			else if (isInSession && tableState == settledState)
 			{
 				isInSession = 0;
 				printf("***NOW OUT SESSION");
+				strcat(tableMessageToWrite, "}");
+				
+				// print tableMessageToWrite
+				printf("\n\n%s\n\n",tableMessageToWrite);
+				
+				// clear tableMessageToWrite
+				strcpy(tableMessageToWrite,"");
+			}
+
+			// Log duration if in session
+			if (isInSession)
+			{
+				strcat(tableMessageToWrite, "{\"TABLE_STATE\":");
+				sprintf(messageStateString, "%d", tableState-settledState);
+				strcat(tableMessageToWrite, messageStateString);
+				strcat(tableMessageToWrite, ", \"TIME\":");
+				sprintf(messageTimeString, "%d", mymillis()-sessionStartTime);
+				strcat(tableMessageToWrite, messageTimeString);
+				strcat(tableMessageToWrite, "},");
 			}
 
 		}
