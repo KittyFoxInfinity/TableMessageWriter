@@ -125,7 +125,7 @@ int main(int argc, char *argv[])
 	int isCFSettled = 0;
 	int settledState;
 	
-	int sessionStartTime;
+	int sessionStartTime = mymillis();
 	int isInSession;
 	
 	char sessionAsJson[50000];
@@ -133,6 +133,7 @@ int main(int argc, char *argv[])
 	char messageTimeString[6];
 	char messageFilePath[255];
 	char messageFileName[255];
+	char tableMessage[50000];
 	
 	while(1)
 	{
@@ -197,7 +198,7 @@ int main(int argc, char *argv[])
 		{
 			isCFSettled = 1;
 			settledState = tableState;
-			printf ("NOW SETTLED");
+			printf ("<-- *****STATE HAS SETTLED WITH TABLE STATE:[%3d]*****", tableState);
 			isInSession = 0;
 		}
 		
@@ -213,7 +214,7 @@ int main(int argc, char *argv[])
 			{
 				isInSession = 1;
 				sessionStartTime = mymillis();
-				printf("***NOW IN SESSION");
+				printf("<-- STARTING INVERSION TABLE SESSION");
 				strcpy(sessionAsJson, "{");
 
 			}
@@ -221,14 +222,13 @@ int main(int argc, char *argv[])
 			else if (isInSession && tableState == settledState)
 			{
 				isInSession = 0;
-				printf("***NOW OUT SESSION");
+				printf("<-- OUT OF INVERSION TABLE SESSION");
 				
 				// remove the last comma
 				sessionAsJson[strlen(sessionAsJson)-1] = 0;
 				strcat(sessionAsJson, "}");
 				
-				// print sessionAsJson
-				printf("\n\n%s\n\n",sessionAsJson);
+				//printf("\n\n%s\n\n",sessionAsJson); // print sessionAsJson
 				
 				// determine filepath to save
 				//sprintf(messageFilePath, "%s", PATH);
@@ -236,13 +236,17 @@ int main(int argc, char *argv[])
 				strcat(messageFilePath, PATH);
 				sprintf(messageFileName,"YIZITIAN_%d",mymillis());
 				strcat(messageFilePath, messageFileName);
-				printf("%s",messageFilePath);
+				
+				// build table message to write
+				sprintf(tableMessage, "{\"SESSION_TIME\":%d,\"SESSION\":%s}",mymillis(),sessionAsJson);
+				printf("\nWriting message:[%s] to path:[%s]",tableMessage,messageFilePath);
 				
 				// save sessionAsJson to file
 				FILE * messageOnDisk;
 				messageOnDisk = fopen(messageFilePath, "ab");
-				fprintf(messageOnDisk, "{\"SESSION_TIME\":%d,\"SESSION\":%s}",mymillis(),sessionAsJson);
+				fprintf(messageOnDisk, tableMessage);
 				fclose(messageOnDisk);
+				printf("\nTable message written to disk\n");
 				
 				// clear sessionAsJson
 				strcpy(sessionAsJson,"");
@@ -268,7 +272,7 @@ int main(int argc, char *argv[])
 			{
 				usleep(100);
 			}
-
+		printf("Time %d\t", mymillis());
 		//printf("Loop Time %d\t", mymillis()- startInt);
     } // while
 }
