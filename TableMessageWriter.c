@@ -90,6 +90,13 @@ int timeval_subtract(struct timeval *result, struct timeval *t2, struct timeval 
     return (diff<0);
 }
 
+int epochtime()
+{
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	return tv.tv_sec;
+}
+
 int main(int argc, char *argv[])
 {
 	float rate_gyr_y = 0.0;   // [deg/s]
@@ -234,7 +241,7 @@ int main(int argc, char *argv[])
 				//sprintf(messageFilePath, "%s", PATH);
 				strcpy(messageFilePath, "");
 				strcat(messageFilePath, PATH);
-				sprintf(messageFileName,"YIZITIAN_%d",mymillis());
+				sprintf(messageFileName,"YIZITIAN_%d", epochtime());
 				strcat(messageFilePath, messageFileName);
 				
 				// build table message to write
