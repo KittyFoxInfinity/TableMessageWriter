@@ -75,11 +75,11 @@ void  INThandler(int sig)
         exit(0);
 }
 
-int mymillis()
+long long mymillis()
 {
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
-	return (tv.tv_sec) * 1000 + (tv.tv_usec)/1000;
+	return (long long)(tv.tv_sec) * 1000 + (long long)(tv.tv_usec)/1000;
 }
 
 int timeval_subtract(struct timeval *result, struct timeval *t2, struct timeval *t1)
@@ -115,7 +115,7 @@ int main(int argc, char *argv[])
 	float CFangleX = 0.0;
 	float CFangleY = 0.0;
 
-	int startInt  = mymillis();
+    long long startInt  = mymillis();
 	struct  timeval tvBegin, tvEnd,tvDiff;
 	
     signal(SIGINT, INThandler);
@@ -128,11 +128,11 @@ int main(int argc, char *argv[])
 	int tableState = 0;
 	int prevTableState = 0;
 	int tableStateChangeCount = 0;
-	int bootInt = mymillis();
+	long long bootInt = mymillis();
 	int isCFSettled = 0;
 	int settledState;
 	
-	int sessionStartTime = mymillis();
+	long long sessionStartTime = mymillis();
 	int isInSession;
 	
 	char sessionAsJson[50000];
@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 		if (prevTableState != tableState && isCFSettled)
 		{
 			printf("\"tableState\":%d", tableState-settledState);
-			printf("\"time\":%d,",mymillis() - sessionStartTime);
+			printf("\"time\":%lld,",mymillis() - sessionStartTime);
 			
 						
 			// Session Logic - NOW IN SESSION
@@ -222,7 +222,7 @@ int main(int argc, char *argv[])
 				isInSession = 1;
 				sessionStartTime = mymillis();
 				printf("<-- STARTING INVERSION TABLE SESSION");
-				strcpy(sessionAsJson, "{");
+				strcpy(sessionAsJson, "[");
 
 			}
 			// NOW OUT OF SESSION
@@ -233,27 +233,38 @@ int main(int argc, char *argv[])
 				
 				// remove the last comma
 				sessionAsJson[strlen(sessionAsJson)-1] = 0;
-				strcat(sessionAsJson, "}");
+				strcat(sessionAsJson, "]");
 				
-				//printf("\n\n%s\n\n",sessionAsJson); // print sessionAsJson
-				
-				// determine filepath to save
-				//sprintf(messageFilePath, "%s", PATH);
-				strcpy(messageFilePath, "");
-				strcat(messageFilePath, PATH);
-				sprintf(messageFileName,"YIZITIAN_%d", epochtime());
-				strcat(messageFilePath, messageFileName);
-				
-				// build table message to write
-				sprintf(tableMessage, "{\"SESSION_TIME\":%d,\"SESSION\":%s}",mymillis(),sessionAsJson);
-				printf("\nWriting message:[%s] to path:[%s]",tableMessage,messageFilePath);
-				
-				// save sessionAsJson to file
-				FILE * messageOnDisk;
-				messageOnDisk = fopen(messageFilePath, "ab");
-				fprintf(messageOnDisk, tableMessage);
-				fclose(messageOnDisk);
-				printf("\nTable message written to disk\n");
+				// IF SESSION IS LESS THAN 1 SECOND, DO NOT WRITE MESSAGE
+				if ((mymillis() - sessionStartTime) < 1000)
+				{
+					// Do not write message as session < 1 second is not use
+					printf("\nSESSION LESS THAN 1 SECOND, SKIPPING MESSAGE\n");
+
+				}
+				else
+				{
+					//printf("\n\n%s\n\n",sessionAsJson); // print sessionAsJson
+					
+					// determine filepath to save
+					//sprintf(messageFilePath, "%s", PATH);
+					strcpy(messageFilePath, "");
+					strcat(messageFilePath, PATH);
+					sprintf(messageFileName,"YIZITIAN_%lld", mymillis());
+					strcat(messageFilePath, messageFileName);
+					
+					// build table message to write
+					sprintf(tableMessage, "{\"SESSION_TIME\":%lli,\"SESSION\":%s}",mymillis(),sessionAsJson);
+					printf("\nWriting message:[%s] to path:[%s]",tableMessage,messageFilePath);
+					
+					// save sessionAsJson to file
+					FILE * messageOnDisk;
+					messageOnDisk = fopen(messageFilePath, "ab");
+					fprintf(messageOnDisk, tableMessage);
+					fclose(messageOnDisk);
+					printf("\nTable message written to disk\n");
+					
+				}
 				
 				// clear sessionAsJson
 				strcpy(sessionAsJson,"");
@@ -266,7 +277,7 @@ int main(int argc, char *argv[])
 				sprintf(messageStateString, "%d", tableState-settledState);
 				strcat(sessionAsJson, messageStateString);
 				strcat(sessionAsJson, ", \"TIME\":");
-				sprintf(messageTimeString, "%d", mymillis()-sessionStartTime);
+				sprintf(messageTimeString, "%lli\t", mymillis()-sessionStartTime);
 				strcat(sessionAsJson, messageTimeString);
 				strcat(sessionAsJson, "},");
 			}
@@ -279,7 +290,7 @@ int main(int argc, char *argv[])
 			{
 				usleep(100);
 			}
-		printf("Time %d\t", mymillis());
+		printf("Time %lld\t", mymillis());
 		//printf("Loop Time %d\t", mymillis()- startInt);
     } // while
 }
